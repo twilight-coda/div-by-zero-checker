@@ -98,6 +98,36 @@ public class DivByZeroTransfer extends CFTransfer {
   private AnnotationMirror arithmeticTransfer(
       BinaryOperator operator, AnnotationMirror lhs, AnnotationMirror rhs) {
     // TODO
+    switch (operator) {
+      case PLUS:
+        if (lhs == bottom() || rhs == bottom()) {
+          return bottom();
+        } else if (lhs == top() || rhs == top()) {
+          return top();
+        } else if (
+                lhs == reflect(Negative.class) && rhs == reflect(Negative.class)
+                        || lhs == reflect(Negative.class) && rhs == reflect(Zero.class)
+                        || rhs == reflect(Negative.class) && lhs == reflect(Zero.class)
+            ) {
+          return reflect(Negative.class);
+        } else if (
+                lhs == reflect(Positive.class) && rhs == reflect(Positive.class)
+                        || lhs == reflect(Positive.class) && rhs == reflect(Zero.class)
+                        || rhs == reflect(Positive.class) && lhs == reflect(Zero.class)
+        ) {
+          return reflect(Positive.class);
+        } else if (lhs == reflect(Zero.class) && rhs == reflect(Zero.class)) {
+          return reflect(Zero.class);
+        } else {
+          return bottom();
+        }
+      case TIMES:
+        break;
+      case DIVIDE:
+        break;
+      case MOD:
+        break;
+    }
     return top();
   }
 
