@@ -76,7 +76,31 @@ public class DivByZeroTransfer extends CFTransfer {
    */
   private AnnotationMirror refineLhsOfComparison(
       Comparison operator, AnnotationMirror lhs, AnnotationMirror rhs) {
-    // TODO
+    switch (operator) {
+      case EQ:
+        return glb(lhs, rhs);
+      case NE:
+        if (both(lhs, rhs, Negative.class) || both(lhs, rhs, Positive.class)) {
+          return bottom();
+        }
+        return lhs;
+      case LT:
+      case LE:
+        if (either(lhs, rhs, bottom()) || (equal(lhs, reflect(Positive.class)) && equal(rhs, reflect(Negative.class)))) {
+          return bottom();
+        } else if (equal(lhs, top()) && equal(rhs, reflect(Negative.class))) {
+          return glb(lhs, rhs);
+        }
+        return lhs;
+      case GT:
+      case GE:
+        if (either(lhs, rhs, bottom()) || (equal(lhs, reflect(Negative.class)) && equal(rhs, reflect(Positive.class)))) {
+          return bottom();
+        } else if (equal(lhs, top()) && equal(rhs, reflect(Positive.class))) {
+          return glb(lhs, rhs);
+        }
+        return lhs;
+    }
     return lhs;
   }
 
@@ -97,43 +121,74 @@ public class DivByZeroTransfer extends CFTransfer {
    */
   private AnnotationMirror arithmeticTransfer(
       BinaryOperator operator, AnnotationMirror lhs, AnnotationMirror rhs) {
-    // TODO
     switch (operator) {
       case PLUS:
-        if (lhs == bottom() || rhs == bottom()) {
-          return bottom();
-        } else if (lhs == top() || rhs == top()) {
-          return top();
-        } else if (
-                lhs == reflect(Negative.class) && rhs == reflect(Negative.class)
-                        || lhs == reflect(Negative.class) && rhs == reflect(Zero.class)
-                        || rhs == reflect(Negative.class) && lhs == reflect(Zero.class)
-            ) {
-          return reflect(Negative.class);
-        } else if (
-                lhs == reflect(Positive.class) && rhs == reflect(Positive.class)
-                        || lhs == reflect(Positive.class) && rhs == reflect(Zero.class)
-                        || rhs == reflect(Positive.class) && lhs == reflect(Zero.class)
-        ) {
-          return reflect(Positive.class);
-        } else if (lhs == reflect(Zero.class) && rhs == reflect(Zero.class)) {
-          return reflect(Zero.class);
-        } else {
+        if (either(lhs, rhs, bottom())) {
           return bottom();
         }
+        return lub(lhs, rhs);
+      case MINUS:
+        if (either(lhs, rhs, bottom())) {
+          return bottom();
+        }
+        if (equal(lhs, reflect(Negative.class)) && equal(rhs, reflect(Positive.class))) {
+          return reflect(Negative.class);
+        } else if (equal(lhs, reflect(Positive.class)) && equal(rhs, reflect(Negative.class))) {
+          return reflect(Positive.class);
+        } else if (both(lhs, rhs, reflect(Positive.class)) || both(lhs, rhs, reflect(Negative.class))) {
+          return top();
+        } else {
+          return lub(lhs, rhs);
+        }
       case TIMES:
-        break;
+        if (either(lhs, rhs, bottom())) {
+          return bottom();
+        }
+        if (both(lhs, rhs, Negative.class) || both(lhs, rhs, Positive.class)) {
+          return reflect(Positive.class);
+        } else if (equal(lhs, reflect(Negative.class)) && equal(rhs, reflect(Positive.class))
+                || equal(lhs, reflect(Positive.class)) && equal(rhs, reflect(Negative.class))
+        ) {
+          return reflect(Negative.class);
+        } else {
+          return lub(lhs, rhs);
+        }
       case DIVIDE:
-        break;
       case MOD:
-        break;
+        if (rhs == top() || rhs == bottom()) {
+          return bottom();
+        }
+        if (both(lhs, rhs, Negative.class) || both(lhs, rhs, Positive.class)) {
+          return reflect(Positive.class);
+        } else if (lhs == reflect(Negative.class) && rhs == reflect(Positive.class)
+                || lhs == reflect(Positive.class) && rhs == reflect(Negative.class)
+        ) {
+          return reflect(Negative.class);
+        } else {
+          return top();
+        }
     }
-    return top();
+    return lub(lhs, rhs);
   }
 
   // ========================================================================
   // Useful helpers
 
+  private boolean both(AnnotationMirror first, AnnotationMirror second, Class<? extends Annotation> anno) {
+    return equal(first, reflect(anno)) && equal(second, reflect(anno));
+  }
+
+  private boolean either(AnnotationMirror first, AnnotationMirror second, Class<? extends Annotation> anno) {
+    return equal(first, reflect(anno)) || equal(second, reflect(anno));
+  }
+
+  private boolean either(AnnotationMirror first, AnnotationMirror second, AnnotationMirror anno) {
+    return equal(first, anno) || equal(second, anno);
+  }
+
+  private boolean both(AnnotationMirror first, AnnotationMirror second, AnnotationMirror anno) {
+    return equal(first, anno) && equal(second, anno);
+  }
   /** Get the top of the lattice */
   private AnnotationMirror top() {
     return analysis.getTypeFactory().getQualifierHierarchy().getTopAnnotations().iterator().next();

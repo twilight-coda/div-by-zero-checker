@@ -5,6 +5,7 @@ import com.sun.source.tree.CompoundAssignmentTree;
 import com.sun.source.tree.LiteralTree;
 import com.sun.source.tree.Tree;
 import com.sun.source.tree.UnaryTree;
+
 import java.lang.annotation.Annotation;
 import javax.lang.model.element.AnnotationMirror;
 import org.checkerframework.checker.dividebyzero.qual.*;
@@ -25,15 +26,17 @@ public class DivByZeroAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
    * @return the most specific possible point in the lattice for the given literal
    */
   private Class<? extends Annotation> defaultAnnotation(LiteralTree literal) {
-    switch (literal.getKind()) {
-      case INT_LITERAL:
-        int intValue = (Integer) literal.getValue();
-        return intValue < 0 ? Negative.class : intValue > 0 ? Positive.class : Zero.class;
-      case LONG_LITERAL:
-        long longValue = (Long) literal.getValue();
-        return longValue < 0 ? Negative.class : longValue > 0 ? Positive.class : Zero.class;
-    }
-    return Top.class;
+      return switch (literal.getKind()) {
+          case INT_LITERAL -> {
+              int intValue = (Integer) literal.getValue();
+              yield intValue < 0 ? Negative.class : intValue > 0 ? Positive.class : Top.class;
+          }
+          case LONG_LITERAL -> {
+              long longValue = (Long) literal.getValue();
+              yield longValue < 0 ? Negative.class : longValue > 0 ? Positive.class : Top.class;
+          }
+          default -> Bottom.class;
+      };
   }
 
   // ========================================================================
