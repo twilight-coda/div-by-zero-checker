@@ -80,26 +80,57 @@ public class DivByZeroTransfer extends CFTransfer {
       case EQ:
         return glb(lhs, rhs);
       case NE:
-        if (both(lhs, rhs, Negative.class) || both(lhs, rhs, Positive.class)) {
+        if (both(lhs, rhs, Negative.class)
+            || both(lhs, rhs, Positive.class)
+            || both(lhs, rhs, Zero.class)
+            || both(lhs, rhs, NotZero.class)
+            || either(lhs, rhs, bottom())) {
           return bottom();
+        } else if (equal(lhs, top())) {
+          if (equal(rhs, reflect(Zero.class))) {
+            return reflect(NotZero.class);
+          } else if (equal(rhs, reflect(NotZero.class))) {
+            return reflect(Zero.class);
+          } else {
+            return lhs;
+          }
+        } else if (equal(lhs, reflect(NotZero.class))) {
+          if (equal(rhs, reflect(Positive.class))) {
+            return reflect(Negative.class);
+          } else if (equal(rhs, reflect(Negative.class))) {
+            return reflect(Positive.class);
+          } else {
+            return lhs;
+          }
+        } else {
+          return lhs;
         }
-        return lhs;
       case LT:
+        if (equal(rhs, reflect(Negative.class))
+            || equal(rhs, reflect(Zero.class))) {
+          return reflect(Negative.class);
+        } else {
+          return bottom();
+        }
       case LE:
-        if (either(lhs, rhs, bottom()) || (equal(lhs, reflect(Positive.class)) && equal(rhs, reflect(Negative.class)))) {
+        if (equal(rhs, reflect(Negative.class))) {
+          return reflect(Negative.class);
+        } else {
           return bottom();
-        } else if (equal(lhs, top()) && equal(rhs, reflect(Negative.class))) {
-          return glb(lhs, rhs);
         }
-        return lhs;
       case GT:
-      case GE:
-        if (either(lhs, rhs, bottom()) || (equal(lhs, reflect(Negative.class)) && equal(rhs, reflect(Positive.class)))) {
+        if (equal(rhs, reflect(Positive.class))
+            || equal(rhs, reflect(Zero.class))) {
+          return reflect(Positive.class);
+        } else {
           return bottom();
-        } else if (equal(lhs, top()) && equal(rhs, reflect(Positive.class))) {
-          return glb(lhs, rhs);
         }
-        return lhs;
+    case GE:
+        if (equal(rhs, reflect(Positive.class))) {
+          return reflect(Positive.class);
+        } else {
+          return bottom();
+        }
     }
     return lhs;
   }
@@ -125,26 +156,49 @@ public class DivByZeroTransfer extends CFTransfer {
       case PLUS:
         if (either(lhs, rhs, bottom())) {
           return bottom();
+        } else if (either(lhs, rhs, top())) {
+          return top();
+        } else if (equal(lhs, reflect(Zero.class))) {
+          return rhs;
+        } else if (equal(rhs, reflect(Zero.class))) {
+          return lhs;
+        } else if (either(lhs, rhs, reflect(NotZero.class))
+            || equal(lhs, reflect(Positive.class)) && equal(rhs, reflect(Negative.class))
+            || equal(lhs, reflect(Negative.class)) && equal(rhs, reflect(Positive.class))) {
+          return top();
+        } else {
+          return lub(lhs, rhs);
         }
-        return lub(lhs, rhs);
       case MINUS:
         if (either(lhs, rhs, bottom())) {
           return bottom();
-        }
-        if (equal(lhs, reflect(Negative.class)) && equal(rhs, reflect(Positive.class))) {
-          return reflect(Negative.class);
-        } else if (equal(lhs, reflect(Positive.class)) && equal(rhs, reflect(Negative.class))) {
-          return reflect(Positive.class);
-        } else if (both(lhs, rhs, reflect(Positive.class)) || both(lhs, rhs, reflect(Negative.class))) {
+        } else if (either(lhs, rhs, top())
+            || (either(lhs, rhs, reflect(NotZero.class)) && !either(lhs, rhs, reflect(Zero.class)))
+            || (both(lhs, rhs, Negative.class) || both(lhs, rhs, Positive.class))) {
           return top();
+        } else if (equal(rhs, reflect(Zero.class))) {
+          return rhs;
+        } else if (equal(lhs, reflect(Zero.class))) {
+          if (equal(rhs, reflect(Positive.class))) {
+            return reflect(Negative.class);
+          } else if (equal(rhs, reflect(Negative.class))) {
+            return reflect(Positive.class);
+          } else {
+            return reflect(NotZero.class);
+          }
+        } else if (equal(rhs, reflect(Positive.class))) {
+          return reflect(Negative.class);
+        } else if (equal(rhs, reflect(Negative.class))) {
+          return reflect(Positive.class);
         } else {
           return lub(lhs, rhs);
         }
       case TIMES:
         if (either(lhs, rhs, bottom())) {
           return bottom();
-        }
-        if (both(lhs, rhs, Negative.class) || both(lhs, rhs, Positive.class)) {
+        } else if (either(lhs, rhs, reflect(Zero.class))) {
+          return reflect(Zero.class);
+        } else if (both(lhs, rhs, Negative.class) || both(lhs, rhs, Positive.class)) {
           return reflect(Positive.class);
         } else if (equal(lhs, reflect(Negative.class)) && equal(rhs, reflect(Positive.class))
                 || equal(lhs, reflect(Positive.class)) && equal(rhs, reflect(Negative.class))
@@ -155,17 +209,18 @@ public class DivByZeroTransfer extends CFTransfer {
         }
       case DIVIDE:
       case MOD:
-        if (rhs == top() || rhs == bottom()) {
+        if (equal(rhs, reflect(Zero.class)) || equal(rhs, top()) || either(lhs, rhs, bottom())) {
           return bottom();
-        }
-        if (both(lhs, rhs, Negative.class) || both(lhs, rhs, Positive.class)) {
+        } else if (equal(lhs, reflect(Zero.class))) {
+          return reflect(Zero.class);
+        } else if (both(lhs, rhs, Negative.class) || both(lhs, rhs, Positive.class)) {
           return reflect(Positive.class);
-        } else if (lhs == reflect(Negative.class) && rhs == reflect(Positive.class)
-                || lhs == reflect(Positive.class) && rhs == reflect(Negative.class)
+        } else if (equal(lhs, reflect(Negative.class)) && equal(rhs, reflect(Positive.class))
+                || equal(lhs, reflect(Positive.class)) && equal(rhs, reflect(Negative.class))
         ) {
           return reflect(Negative.class);
         } else {
-          return top();
+          return lub(lhs, rhs);
         }
     }
     return lub(lhs, rhs);
